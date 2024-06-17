@@ -5,7 +5,10 @@ date: "2024-06-17"
 output: html_document
 ---
 
-Librerías y lectura de documentos
+# Introducción
+
+## **Librerías y lectura de documentos**
+
 ```{r}
 library(tidyverse)
 library(haven)
@@ -18,36 +21,88 @@ bolivia<- readRDS("Bolivia_1a4T2019.RDS")
 chile <- read.csv2("Chile_2019.csv")
 ```
 
-Bolivia-Observación
+# Desarrollo
+
+En este trabajo abordaremos dos encuetras de hogares, una de desarrollo en Chile y otra en Bolivia. En este último caso, es una encuesta continua de la que abordaremos los datos del cuarto trimestre del 2019, por lo cual el factor de expansión se realizará al nivel trimestral. Por su parte, en el caso de Chile, se trata de una encuesta anual. En ambos casos, la cobertura es a nivel nacional, es decir, incluye áreas tanto rurales como urbanas.
+
+## Bolivia
+
+En lo caso de la encuesta de Bolivia, se utilizaron las siguientes variables:
+
+-   pea → "La Población Económicamente Activa (PEA) corresponde a aquellas personas de 14 años o más de edad que en la semana que fueron encuestadas declararon: a) que trabajaron al menos una hora en la semana de referencia, b) que por razones circunstanciales no trabajaron, pero cuentan con una fuente laboral; c) o que no trabajaron, pero buscaron trabajo durante las últimas cuatro semanas además de estar disponibles para trabajar. La PEA es el conjunto de personas ocupadas y desocupadas."
+
+-   fact_trim → "Cantidad de unidades (personas) que representa una unidad (persona) de la muestra de forma trimestral"
+
+-   peao → "La Población Ocupada corresponde a personas de 14 años de edad o más que hubiesen trabajado más de una hora en la semana de referencia"
+
+-   pead → "La Población Desocupada corresponde a las personas de 14 años o más de edad que: no tienen trabajo, están disponibles para trabajar y lo buscan activamente; es decir, en la semana que fueron encuestadas declararon que no trabajaron ni una hora en la semana de referencia, a pesar de que realizaron acciones de búsqueda de un empleo o intentaron ejercer una actividad por su cuenta, durante las últimas cuatro semanas"
+
+-   s2_26a → sirve para "indagar sobre la cantidad de personal que trabaja en la institución, considerando que se debe aproximar según la existencia de la empresa en distintos lugares dentro del país"
+
+-   s2_17a→ sirve para "determinar si existe una relación de dependencia o no, o si se trata de una trabajador familiar no remunerado"
+
+-   s2_21 →"Esta pregunta permite [conocer] el tipo de relación contractual que tienen los trabajadores con sus empleadores para los casos exclusivos de declaración como Obreros o Empleados en la categoría ocupacional"
+
+-   s2_21a → "Esta pregunta permite [conocer] el tipo de relación contractual en términos de tiempo"
+
+#### **Bolivia-Observación**
+
 ```{r}
 View(bolivia)
 colnames(bolivia)
 ```
 
-Bolivia-Indicadores
+#### **Bolivia-Indicadores**
+
 ```{r}
-suma_pea <- sum(bolivia$fact_mes[bolivia$pea == 1], na.rm = TRUE)
-suma_desocupados <- sum(bolivia$fact_mes[bolivia$pead == 1], na.rm = TRUE)
-suma_ocupados <- sum(bolivia$fact_mes[bolivia$peao == 1], na.rm = TRUE)
-suma_total <- sum(bolivia$fact_mes)
-informales <- sum(bolivia$fact_mes[bolivia$s2_26a <= 2], na.rm = TRUE) #se toma a los que tienen menos 
-asalariados <- sum(bolivia$fact_mes[bolivia$s2_17a == 2], na.rm = TRUE)
-asalariados_precarios <- sum(bolivia$fact_mes[(bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3)], na.rm = TRUE)
+suma_pea <- sum(bolivia$fact_trim[bolivia$pea == 1], na.rm = TRUE)
+suma_desocupados <- sum(bolivia$fact_trim[bolivia$pead == 1], na.rm = TRUE)
+suma_ocupados <- sum(bolivia$fact_trim[bolivia$peao == 1], na.rm = TRUE)
+suma_total <- sum(bolivia$fact_trim)
+informales <- sum(bolivia$fact_trim[bolivia$s2_26a <= 2], na.rm = TRUE) 
+asalariados <- sum(bolivia$fact_trim[bolivia$s2_17a == 2], na.rm = TRUE) 
+asalariados_precarios <- sum(bolivia$fact_trim[(bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3)], na.rm = TRUE) 
 TA_B = suma_pea/suma_total
 TD_B = suma_desocupados/suma_pea
 TI_B = informales/suma_ocupados
 TP_B = asalariados_precarios/asalariados
 ```
 
-Chile-Observación
+En resumen, podemos ver que aproximadamente la mitad de las personas en Bolivia son parte de la población económicamente activa. Es decir, son ocupados o desocupados. Dentro de dicho porcentaje, aproximadamente un 4% son desocupados.
+
+Sin embargo, es de destacar que un 30% de todos los ocupados son informales. Según nuestra definición, esto implicaría trabajar para empresas que a nivel nacional tienen 10 personas o menos.
+
+Asemás, si tomamos en cuenta las relaciones contractuales de los asalariados, se distintgue que la mitad son precarios. Según la definición que tomamos, esto implica no tener contrato firmado o que este dure 6 meses o menos.
+
+#### **Bolivia-tener en cuenta el sexo y la edad**
+
+```{r}
+#Agregamos columnas para las variables
+bolivia$informal <- "nada"
+bolivia <- bolivia %>%  mutate(informal = ifelse(bolivia$s2_26a <= 2, "si", "no"))
+
+bolivia$precario <- "nada"
+bolivia <- bolivia %>%  mutate(precario = ifelse((bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3), "si", "no"))
+
+#vinculación con el sexo
+bolivia <- bolivia %>% unite("informalporsexo", "informal", "s1_02") #1 = hombre, 2 = mujer
+#vinculación con la edad
+```
+
+#s1_03a → edad
+
+#s1_02 → sexo
+
+### Chile
+
+#### **Chile-Observación**
+
 ```{r}
 View(chile)
 colnames(chile)
 #Control de los datos comparando datos del marco poblacional del registro de la encuesta. Los resultados coinciden.
 chile %>% count(grupo_edad, wt=fact_cal_esi) %>% mutate(porcentaje =round((n/sum(n)*100), digits = 1))
 ```
-
-
 
 Como no existe ninguna variable que indique activo/inactivo/desocupado, se procede a recodificar la variable "cse_específico", que indica los distintos tipos de perfiles para ocupado, desocupado e inactivo, en una nueva variable "categoría" con los tres perfiles mencionados.
 
@@ -63,8 +118,8 @@ chile$categoría <- chile$cse_especifico %>%
     "Ocupado" = "5",
     "Ocupado" = "6",
     "Ocupado" = "7",
-    "Descocupado" = "8",
-    "Descocupado" = "9",
+    "Desocupado" = "8",
+    "Desocupado" = "9",
     "Inactivo" = "10",
     "Inactivo" = "11",
     "Inactivo" = "12",
@@ -86,18 +141,15 @@ chile$categoría <- chile$cse_especifico %>%
     "Inactivo" = "28")
 ```
 
-
-Chile-Indicadores
-
+#### **Chile-Indicadores**
 
 ```{r}
-chile <- cse_específico %>% 
 
-OcupadoChile<-chile %>% filter(categoría == "Ocupado") %>% pull(n)
+t<-chile[chile$categoría=="Ocupado",]
+OcupadoChile<-sum(t$fact_cal_esi)
 
-DesocupadoChile<-chile %>% filter(categoría == "Desocupado") %>% pull(n)
-
-PoblTotChile<-sum(chile$fact_cal_esi)
+a<-chile[chile$categoría=="Desocupado",]
+DesocupadoChile<-sum(a$fact_cal_esi)
 
 PeaChile<-chile %>% filter(categoría %in% c("Ocupado", "Desocupado")) %>% 
   summarise(pea=sum(fact_cal_esi))
@@ -112,11 +164,10 @@ kable(t(Datosgenerales), caption = "Datos generales del mercado de trabajo chile
 
 ```
 
-
-
 # Sector formal e informal
 
 Uso la variable nº42 "cise" de clasificación internacional de categoría en el empleo. Se procede a recodificar las modalidades.
+
 ```{r}
 ## Recoding chile$cise into chile$`Categoría empleo (cise)`
 chile$`Categoría empleo (cise)` <- chile$cise %>%
@@ -140,8 +191,6 @@ kable(CategoríaEmpleoCiseChile, caption = "Población activa por categoría de 
 ## Se verifica que "No corresponde" = Desocupao + Inactivo + Menor de 15.
 ```
 
-
-
 Uso la variable nº75 "b15_1" que corresponde a la pregunta "En todo el país, ¿cuántas personas trabajan en esa empresa, negocio, institución que le paga o en esa actividad por cuenta propia, incluyendo a ...?"
 
 ```{r}
@@ -158,10 +207,3 @@ chile$`Tamaño empresa` <- chile$b15_1 %>%
 
 chile %>% count(`Tamaño empresa`, wt=fact_cal_esi) %>% mutate(n= round(n, digits = 0), Porcentaje =round((n/sum(n)*100), digits = 1))
 ```
-
-
-
-
-
-
-
