@@ -14,7 +14,7 @@ library(kableExtra)
 
 
 setwd("C:/Users/melod/Escritorio/Estudio/Posgrado/2024/Mercado de trabajo/Evaluación/Evaluacion/")
-encuestas_b<- readRDS("Bolivia_1a4T2019.RDS")
+bolivia<- readRDS("Bolivia_1a4T2019.RDS")
 chile <- read.csv2("Chile_2019.csv")
 ```
 
@@ -26,13 +26,13 @@ colnames(encuestas_b)
 
 Bolivia-Indicadores
 ```{r}
-suma_pea <- sum(encuestas_b$fact_mes[encuestas_b$pea == 1], na.rm = TRUE)
-suma_desocupados <- sum(encuestas_b$fact_mes[encuestas_b$pead == 1], na.rm = TRUE)
-suma_ocupados <- sum(encuestas_b$fact_mes[encuestas_b$peao == 1], na.rm = TRUE)
-suma_total <- sum(encuestas_b$fact_mes)
-informales <- sum(encuestas_b$fact_mes[encuestas_b$s2_26 <= 4], na.rm = TRUE)
-asalariados <- sum(encuestas_b$fact_mes[encuestas_b$s2_17a == 2], na.rm = TRUE)
-asalariados_precarios <- sum(encuestas_b$fact_mes[(encuestas_b$s2_21 %in% c(2,3, 5)) | (encuestas_b$s2_21a != 3)], na.rm = TRUE)
+suma_pea <- sum(bolivia$fact_mes[bolivia$pea == 1], na.rm = TRUE)
+suma_desocupados <- sum(bolivia$fact_mes[bolivia$pead == 1], na.rm = TRUE)
+suma_ocupados <- sum(bolivia$fact_mes[bolivia$peao == 1], na.rm = TRUE)
+suma_total <- sum(bolivia$fact_mes)
+informales <- sum(bolivia$fact_mes[bolivia$s2_26 <= 4], na.rm = TRUE)
+asalariados <- sum(bolivia$fact_mes[bolivia$s2_17a == 2], na.rm = TRUE)
+asalariados_precarios <- sum(bolivia$fact_mes[(bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3)], na.rm = TRUE)
 TA_B = suma_pea/suma_total
 TD_B = suma_desocupados/suma_pea
 TI_B = informales/suma_ocupados
