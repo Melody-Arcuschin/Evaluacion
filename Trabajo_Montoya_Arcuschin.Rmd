@@ -41,10 +41,87 @@ TP_B = asalariados_precarios/asalariados
 
 Chile-Observación
 ```{r}
+#Control de los datos comparando datos del marco poblacional del registro de la encuesta. Los resultados coinciden.
 chile %>% count(grupo_edad, wt=fact_cal_esi) %>% mutate(porcentaje =round((n/sum(n)*100), digits = 1))
 ```
 
+
+
+Como no existe ninguna variable que indique activo/inactivo/desocupado, se procede a recodificar la variable "cse_específico", que indica los distintos tipos de perfiles para ocupado, desocupado e inactivo, en una nueva variable "categoría" con los tres perfiles mencionados.
+
 Chile-Indicadores
+
+
 ```{r}
+OcupadoChile<-t %>% filter(categoría == "Ocupado") %>% pull(n)
+
+DesocupadoChile<-t %>% filter(categoría == "Desocupado") %>% pull(n)
+
+PoblTotChile<-sum(chile$fact_cal_esi)
+
+PeaChile<-chile %>% filter(categoría %in% c("Ocupado", "Desocupado")) %>% 
+  summarise(pea=sum(fact_cal_esi))
+
+TasaActivChile<-round((PeaChile/PoblTotChile*100), digits = 1)
+
+TasaDesocupChile<-round((DesocupadoChile/PeaChile*100), digits = 1)
+
+Datosgenerales<-tibble(Ocupados=OcupadoChile, Desocupados=DesocupadoChile, "Población total"=PoblTotChile,"Población Económicamente Activa"= PeaChile, "Tasa de Actividad"= TasaActivChile, "Tasa de desocupación"=TasaDesocupChile)
+
+kable(t(Datosgenerales), caption = "Datos generales del mercado de trabajo chileno (2019)")
+
 ```
+
+
+
+# Sector formal e informal
+
+Uso la variable nº42 "cise" de clasificación internacional de categoría en el empleo. Se procede a recodificar las modalidades.
+```{r}
+## Recoding chile$cise into chile$`Categoría empleo (cise)`
+chile$`Categoría empleo (cise)` <- chile$cise %>%
+  as.character() %>%
+  fct_recode(
+    "No corrresponde" = "0",
+    "Empleador" = "1",
+    "Cuenta propia" = "2",
+    "Asalariado sector privado" = "3",
+    "Asalariado sector público" = "4",
+    "Personal de servicio doméstico puertas afueras" = "5",
+    "Personal de servicio doméstico puertas adentro" = "6",
+    "Familiar/personal no remunerado" = "7"
+  )
+
+
+CategoríaEmpleoCiseChile<-chile %>% count(`Categoría empleo (cise)`, wt=fact_cal_esi) %>% mutate(n= round(n, digits = 0), Porcentaje =round((n/sum(n)*100), digits = 1))
+
+kable(CategoríaEmpleoCiseChile, caption = "Población activa por categoría de empleo (cise, 2019)")
+
+## Se verifica que "No corresponde" = Desocupao + Inactivo + Menor de 15.
+```
+
+
+
+Uso la variable nº75 "b15_1" que corresponde a la pregunta "En todo el país, ¿cuántas personas trabajan en esa empresa, negocio, institución que le paga o en esa actividad por cuenta propia, incluyendo a ...?"
+
+```{r}
+## Recoding chile$b15_1 into chile$`Tamaño empresa`
+chile$`Tamaño empresa` <- chile$b15_1 %>%
+  as.character() %>%
+  fct_recode(
+    "Menos de 5" = "1",
+    "De 5 a 10" = "2",
+    "Entre 11 y 49" = "3",
+    "Entre 50 y 199" = "4",
+    "200 y más personas" = "5"
+  )
+
+chile %>% count(`Tamaño empresa`, wt=fact_cal_esi) %>% mutate(n= round(n, digits = 0), Porcentaje =round((n/sum(n)*100), digits = 1))
+```
+
+
+
+
+
+
 
