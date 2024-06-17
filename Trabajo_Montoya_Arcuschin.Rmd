@@ -1,0 +1,42 @@
+---
+title: "Trabajo_Montoya_Arcuschin"
+author: "Melody Sol Arcuschin y Vitor Montoya"
+date: "2024-06-17"
+output: html_document
+---
+
+Librerías y lectura de documentos
+```{r}
+library(tidyverse)
+library(haven)
+library(openxlsx)
+library(kableExtra)
+
+
+setwd("C:/Users/melod/Escritorio/Estudio/Posgrado/2024/Mercado de trabajo/Evaluación/Evaluacion/")
+encuestas_b<- readRDS("Bolivia_1a4T2019.RDS")
+encuestas_c <- read.csv2("Chile_2019.csv")
+```
+
+Bolivia-Observación
+```{r}
+View(encuestas_b)
+colnames(encuestas_b)
+```
+
+Bolivia-Indicadores
+```{r}
+suma_pea <- sum(encuestas_b$fact_mes[encuestas_b$pea == 1], na.rm = TRUE)
+suma_desocupados <- sum(encuestas_b$fact_mes[encuestas_b$pead == 1], na.rm = TRUE)
+suma_ocupados <- sum(encuestas_b$fact_mes[encuestas_b$peao == 1], na.rm = TRUE)
+suma_total <- sum(encuestas_b$fact_mes)
+informales <- sum(encuestas_b$fact_mes[encuestas_b$s2_26 <= 4], na.rm = TRUE)
+asalariados <- sum(encuestas_b$fact_mes[encuestas_b$s2_17a == 2], na.rm = TRUE)
+asalariados_precarios <- sum(encuestas_b$fact_mes[(encuestas_b$s2_21 %in% c(2,3, 5)) | (encuestas_b$s2_21a != 3)], na.rm = TRUE)
+TA_B = suma_pea/suma_total
+TD_B = suma_desocupados/suma_pea
+TI_B = informales/suma_ocupados
+TP_B = asalariados_precarios/asalariados
+```
+
+
