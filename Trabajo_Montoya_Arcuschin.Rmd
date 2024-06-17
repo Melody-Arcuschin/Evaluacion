@@ -5,6 +5,14 @@ date: "2024-06-17"
 output: html_document
 ---
 
+
+HOLA!!!1
+
+
+
+
+
+
 Librerías y lectura de documentos
 ```{r}
 library(tidyverse)
