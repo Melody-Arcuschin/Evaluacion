@@ -30,7 +30,7 @@ suma_pea <- sum(bolivia$fact_mes[bolivia$pea == 1], na.rm = TRUE)
 suma_desocupados <- sum(bolivia$fact_mes[bolivia$pead == 1], na.rm = TRUE)
 suma_ocupados <- sum(bolivia$fact_mes[bolivia$peao == 1], na.rm = TRUE)
 suma_total <- sum(bolivia$fact_mes)
-informales <- sum(bolivia$fact_mes[bolivia$s2_26a <= 2 & s1_03a >= 15 ], na.rm = TRUE)
+informales <- sum(bolivia$fact_mes[bolivia$s2_26a <= 2], na.rm = TRUE)
 asalariados <- sum(bolivia$fact_mes[bolivia$s2_17a == 2], na.rm = TRUE)
 asalariados_precarios <- sum(bolivia$fact_mes[(bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3)], na.rm = TRUE)
 TA_B = suma_pea/suma_total
