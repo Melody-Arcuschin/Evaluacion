@@ -5,14 +5,6 @@ date: "2024-06-17"
 output: html_document
 ---
 
-
-HOLA!!!1
-
-
-
-
-
-
 Librerías y lectura de documentos
 ```{r}
 library(tidyverse)
@@ -47,4 +39,11 @@ TI_B = informales/suma_ocupados
 TP_B = asalariados_precarios/asalariados
 ```
 
+Chile-Observación
+```{r}
+```
+
+Chile-Indicadores
+```{r}
+```
 
