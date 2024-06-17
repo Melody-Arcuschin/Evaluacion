@@ -15,7 +15,7 @@ library(kableExtra)
 
 setwd("C:/Users/melod/Escritorio/Estudio/Posgrado/2024/Mercado de trabajo/Evaluación/Evaluacion/")
 encuestas_b<- readRDS("Bolivia_1a4T2019.RDS")
-encuestas_c <- read.csv2("Chile_2019.csv")
+chile <- read.csv2("Chile_2019.csv")
 ```
 
 Bolivia-Observación
@@ -41,6 +41,7 @@ TP_B = asalariados_precarios/asalariados
 
 Chile-Observación
 ```{r}
+chile %>% count(grupo_edad, wt=fact_cal_esi) %>% mutate(porcentaje =round((n/sum(n)*100), digits = 1))
 ```
 
 Chile-Indicadores
