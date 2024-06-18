@@ -167,7 +167,7 @@ chile %>% count(grupo_edad, wt=fact_cal_esi) %>% mutate(porcentaje =round((n/sum
 
 ```
 
-Como no existe ninguna variable que indique activo/inactivo/desocupado, se procede a recodificar la variable \"cse_específico\", que indica los distintos tipos de perfiles y que permite reconstruir, en base a lo indicado en el registro, si se trata de la categoría ocupado, desocupado o inactivo.
+Como no existe ninguna variable que indique activo/inactivo/desocupado, se procede a recodificar la variable "cse_específico", que indica los distintos tipos de perfiles y que permite reconstruir, en base a lo indicado en el registro, si se trata de la categoría ocupado, desocupado o inactivo.
 
 ```{r}
 chile$categoría <- chile$cse_especifico %>%
@@ -234,7 +234,7 @@ kable(t(Datosgenerales), caption = "Datos generales del mercado de trabajo chile
 
 #### Chile-Sector formal e informal, precariedad.
 
-La encuesta ESI contiene una variable \"sector\" que designa \"Ocupados según sector\", se calcula entonces la tasa de informalidad usando esa variable.
+La encuesta ESI contiene una variable "sector" que designa "Ocupados según sector", se calcula entonces la tasa de informalidad usando esa variable.
 
 ```{r}
 InformalChile<-chile %>% filter(chile$sector=="2")
@@ -243,7 +243,7 @@ TasaInformalidadChile<-round(InformalChile/OcupadoChile*100, digits=1)
 
 ```
 
-Para la precariedad, se usan tres variables. En primer lugar, la variable \"b8\" que indica la existencia de un contrato. Se recodifican las modalidades.
+Para la precariedad, se usan tres variables. En primer lugar, la variable "b8" que indica la existencia de un contrato. Se recodifican las modalidades.
 
 ```{r}
 ## Recoding chile$b8 into chile$Contrato
@@ -255,7 +255,7 @@ chile$Contrato <- chile$b8 %>%
   )
 ```
 
-Se usa también la variable \"b9\" sobre el carácter definido o indefinido del contrato.
+Se usa también la variable "b9" sobre el carácter definido o indefinido del contrato.
 
 ```{r}
 ## Recoding chile$b9 into chile$DuraciónContrato
@@ -267,7 +267,7 @@ chile$DuraciónContrato <- chile$b9 %>%
   )
 ```
 
-Y la varibale \"b10\", sobre la duración del contrato.
+Y la varibale "b10", sobre la duración del contrato.
 
 ```{r}
 ## Recoding chile$b10 into chile$DuraciónContratoDefinido
@@ -283,7 +283,7 @@ chile$DuraciónContratoDefinido <- chile$b10 %>%
   )
 ```
 
-Se crea a partir de esa variable una variable única \"Precariedad\" que resulta del cruce entre las tres. Luego se recodifica tomando en cuenta los criterios siguientes:
+Se crea a partir de esa variable una variable única "Precariedad" que resulta del cruce entre las tres. Luego se recodifica tomando en cuenta los criterios siguientes:
 
 Se considera como precaria: -Toda persona sin contrato. -Toda persona con un contrato de una duración menor a 3 meses, con una duración no conocida, que se acaba con la temporada o al término de la actividad, obra o proyecto.
 
