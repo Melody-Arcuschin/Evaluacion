@@ -14,6 +14,8 @@ library(tidyverse)
 library(haven)
 library(openxlsx)
 library(kableExtra)
+library(survey)
+library(gmodels)
 
 
 setwd("C:/Users/melod/Escritorio/Estudio/Posgrado/2024/Mercado de trabajo/Evaluación/Evaluacion/")
@@ -74,37 +76,98 @@ Sin embargo, es de destacar que un 30% de todos los ocupados son informales. Seg
 
 Asemás, si tomamos en cuenta las relaciones contractuales de los asalariados, se distintgue que la mitad son precarios. Según la definición que tomamos, esto implica no tener contrato firmado o que este dure 6 meses o menos.
 
-#### **Bolivia-tener en cuenta el sexo y la edad**
-
 ```{r}
-#Agregamos columnas para las variables
-bolivia$informal <- "nada"
-bolivia <- bolivia %>%  mutate(informal = ifelse(bolivia$s2_26a <= 2, "si", "no"))
+DatosgeneralesBolivia<-tibble(Ocupados=suma_ocupados, Desocupados=suma_desocupados, "Población total"=suma_total, "Población Económicamente Activa" =suma_pea, "Tasa de Actividad"= TA_B, "Tasa de desocupación"=TD_B)
+DatosgeneralesBolivia<-t(DatosgeneralesBolivia)
+kable(DatosgeneralesBolivia, caption = "Datos generales del mercado de trabajo de trabajo boliviano (2019)")
 
-bolivia$precario <- "nada"
-bolivia <- bolivia %>%  mutate(precario = ifelse((bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3), "si", "no"))
-
-#vinculación con el sexo
-bolivia <- bolivia %>% unite("informalporsexo", "informal", "s1_02") #1 = hombre, 2 = mujer
-#vinculación con la edad
 ```
 
-#s1_03a → edad
+```{r}
+InformalidadPrecaridadBolivia<-tibble("Tasa de informalidad (%)"=round((TI_B*100), digits = 1), "Tasa de asalariados precarios (%)"=round((TP_B*100), digits = 1))
+InformalidadPrecaridadBolivia<-t(InformalidadPrecaridadBolivia)
+kable(InformalidadPrecaridadBolivia, caption = "Tasa de informalidad y de precariedad en Bolivia")
 
-#s1_02 → sexo
+```
+
+#### Bolivia-sexo/informalidad
+
+```{r}
+## Recoding bolivia$sector
+bolivia <- bolivia %>%
+  mutate(sector = ifelse(s2_26a <= 2, "Informal", "Formal"))
+
+## Recoding bolivia$sexo
+bolivia$sexo <- bolivia$s1_02 %>% as.character() %>% fct_recode(
+    "Hombre" = "1",
+    "Mujer" = "2")
+
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~sector + sexo, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~sector + sexo, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+```
+
+#### Bolivia-sexo/precariedad
+
+```{r}
+bolivia <- bolivia %>%
+  mutate(precariedad = ifelse(((bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3)), "precario", "no precario"))
+
+
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~precariedad + sexo, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~precariedad + sexo, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+
+```
+
+#### **Bolivia-**edad/informalidad
+
+```{r}
+bolivia <- bolivia %>%
+  mutate(edad = case_when(
+    s1_03a >= 15 & s1_03a <= 20 ~ "de 15 a 20",
+    s1_03a > 20 & s1_03a <= 40 ~ "de 21 a 40",
+    s1_03a > 40 & s1_03a <= 60 ~ "de 41 a 60",
+    s1_03a > 60 & s1_03a <= 80 ~ "de 61 a 80",
+    s1_03a > 80 ~ "mayor de 80"
+  ))
+
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~edad + sector, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~edad + sector, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+```
+
+#### **Bolivia-**edad/precariedad
+
+```{r}
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~edad + precariedad, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~edad + precariedad, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+```
 
 ### Chile
 
-#### **Chile-Observación**
+#### **Chile-Primeros pasos**
 
 ```{r}
-View(chile)
-colnames(chile)
 #Control de los datos comparando datos del marco poblacional del registro de la encuesta. Los resultados coinciden.
 chile %>% count(grupo_edad, wt=fact_cal_esi) %>% mutate(porcentaje =round((n/sum(n)*100), digits = 1))
+
 ```
 
-Como no existe ninguna variable que indique activo/inactivo/desocupado, se procede a recodificar la variable "cse_específico", que indica los distintos tipos de perfiles para ocupado, desocupado e inactivo, en una nueva variable "categoría" con los tres perfiles mencionados.
+Como no existe ninguna variable que indique activo/inactivo/desocupado, se procede a recodificar la variable \"cse_específico\", que indica los distintos tipos de perfiles y que permite reconstruir, en base a lo indicado en el registro, si se trata de la categoría ocupado, desocupado o inactivo.
 
 ```{r}
 chile$categoría <- chile$cse_especifico %>%
@@ -143,16 +206,21 @@ chile$categoría <- chile$cse_especifico %>%
 
 #### **Chile-Indicadores**
 
+Se procede luego a calcular los datos solicitados utilizando la categorización anterior.
+
 ```{r}
 
 t<-chile[chile$categoría=="Ocupado",]
-OcupadoChile<-sum(t$fact_cal_esi)
+OcupadoChile<-round(sum(t$fact_cal_esi), digits = 0)
 
-a<-chile[chile$categoría=="Desocupado",]
-DesocupadoChile<-sum(a$fact_cal_esi)
 
-PeaChile<-chile %>% filter(categoría %in% c("Ocupado", "Desocupado")) %>% 
-  summarise(pea=sum(fact_cal_esi))
+t<-chile[chile$categoría=="Desocupado",]
+DesocupadoChile<-round(sum(t$fact_cal_esi), digits = 0)
+
+
+PoblTotChile<-sum(chile$fact_cal_esi)
+
+PeaChile<-OcupadoChile+DesocupadoChile
 
 TasaActivChile<-round((PeaChile/PoblTotChile*100), digits = 1)
 
@@ -164,46 +232,130 @@ kable(t(Datosgenerales), caption = "Datos generales del mercado de trabajo chile
 
 ```
 
-# Sector formal e informal
+#### Chile-Sector formal e informal, precariedad.
 
-Uso la variable nº42 "cise" de clasificación internacional de categoría en el empleo. Se procede a recodificar las modalidades.
+La encuesta ESI contiene una variable \"sector\" que designa \"Ocupados según sector\", se calcula entonces la tasa de informalidad usando esa variable.
 
 ```{r}
-## Recoding chile$cise into chile$`Categoría empleo (cise)`
-chile$`Categoría empleo (cise)` <- chile$cise %>%
+InformalChile<-chile %>% filter(chile$sector=="2")
+InformalChile<-sum(InformalChile$fact_cal_esi)
+TasaInformalidadChile<-round(InformalChile/OcupadoChile*100, digits=1)
+
+```
+
+Para la precariedad, se usan tres variables. En primer lugar, la variable \"b8\" que indica la existencia de un contrato. Se recodifican las modalidades.
+
+```{r}
+## Recoding chile$b8 into chile$Contrato
+chile$Contrato <- chile$b8 %>%
   as.character() %>%
   fct_recode(
-    "No corrresponde" = "0",
-    "Empleador" = "1",
-    "Cuenta propia" = "2",
-    "Asalariado sector privado" = "3",
-    "Asalariado sector público" = "4",
-    "Personal de servicio doméstico puertas afueras" = "5",
-    "Personal de servicio doméstico puertas adentro" = "6",
-    "Familiar/personal no remunerado" = "7"
+    "Con contrato" = "1",
+    "Sin contrato" = "2"
+  )
+```
+
+Se usa también la variable \"b9\" sobre el carácter definido o indefinido del contrato.
+
+```{r}
+## Recoding chile$b9 into chile$DuraciónContrato
+chile$DuraciónContrato <- chile$b9 %>%
+  as.character() %>%
+  fct_recode(
+    "Definido" = "1",
+    "Indefinido" = "2"
+  )
+```
+
+Y la varibale \"b10\", sobre la duración del contrato.
+
+```{r}
+## Recoding chile$b10 into chile$DuraciónContratoDefinido
+chile$DuraciónContratoDefinido <- chile$b10 %>%
+  as.character() %>%
+  fct_recode(
+    "Temporada" = "1",
+    "TérminoActividad" = "2",
+    "Menos3meses" = "3",
+    "RenovableAlAño" = "4",
+    "Reemplazo" = "5",
+    "NoSabe" = "6"
+  )
+```
+
+Se crea a partir de esa variable una variable única \"Precariedad\" que resulta del cruce entre las tres. Luego se recodifica tomando en cuenta los criterios siguientes:
+
+Se considera como precaria: -Toda persona sin contrato. -Toda persona con un contrato de una duración menor a 3 meses, con una duración no conocida, que se acaba con la temporada o al término de la actividad, obra o proyecto.
+
+Se considera como no precaria: - Con contrato definido que se puede remplazar. - Con contrato defenido renovable al año. - Con contrato indefinido.
+
+```{r}
+# Creación de la variable precariedad
+chile<-chile %>% unite("Precariedad", Contrato,DuraciónContrato,DuraciónContratoDefinido, sep = "_")
+
+## Recoding chile$Precariedad
+chile$Precariedad <- chile$Precariedad %>%
+  fct_recode(
+    "Precario" = "Con contrato_Definido_Menos3meses",
+    "Precario" = "Con contrato_Definido_NoSabe",
+    "NoPrecario" = "Con contrato_Definido_Reemplazo",
+    "Noprecario" = "Con contrato_Definido_RenovableAlAño",
+    "Precario" = "Con contrato_Definido_Temporada",
+    "Precario" = "Con contrato_Definido_TérminoActividad",
+    "NoPrecario" = "Con contrato_Indefinido_NA",
+    NULL = "NA_NA_NA",
+    "Precario" = "Sin contrato_Definido_Menos3meses",
+    "Precario" = "Sin contrato_Definido_NoSabe",
+    "Precario" = "Sin contrato_Definido_Reemplazo",
+    "Precario" = "Sin contrato_Definido_RenovableAlAño",
+    "Precario" = "Sin contrato_Definido_Temporada",
+    "Precario" = "Sin contrato_Definido_TérminoActividad",
+    "Precario" = "Sin contrato_Indefinido_NA"
+  )
+PrecariosChile<-chile %>% filter(Precariedad=="Precario")
+TasaPrecariedadChile<-round(sum(PrecariosChile$fact_cal_esi)/OcupadoChile*100, digits = 1)
+kable(t((tibble("Tasa de informalidad"=TasaInformalidadChile, "Tasa de precariedad"=TasaPrecariedadChile))), caption = "Tasa de informalidad y de precariedad en Chile")
+
+```
+
+#### Sexo/formalidad
+
+Se realizó una tabla cruzada de la relación entre formalidad y sexo.
+
+```{r}
+## Recoding chile$sector
+chile$sector <- chile$sector %>%
+  as.character() %>%
+  fct_recode(
+    "Formal" = "1",
+    "Informal" = "2",
+    "HogaresComoEmpleadores" = "3"
   )
 
 
-CategoríaEmpleoCiseChile<-chile %>% count(`Categoría empleo (cise)`, wt=fact_cal_esi) %>% mutate(n= round(n, digits = 0), Porcentaje =round((n/sum(n)*100), digits = 1))
-
-kable(CategoríaEmpleoCiseChile, caption = "Población activa por categoría de empleo (cise, 2019)")
-
-## Se verifica que "No corresponde" = Desocupao + Inactivo + Menor de 15.
-```
-
-Uso la variable nº75 "b15_1" que corresponde a la pregunta "En todo el país, ¿cuántas personas trabajan en esa empresa, negocio, institución que le paga o en esa actividad por cuenta propia, incluyendo a ...?"
-
-```{r}
-## Recoding chile$b15_1 into chile$`Tamaño empresa`
-chile$`Tamaño empresa` <- chile$b15_1 %>%
+## Recoding chile$sexo
+chile$sexo <- chile$sexo %>%
   as.character() %>%
   fct_recode(
-    "Menos de 5" = "1",
-    "De 5 a 10" = "2",
-    "Entre 11 y 49" = "3",
-    "Entre 50 y 199" = "4",
-    "200 y más personas" = "5"
+    "Hombre" = "1",
+    "Mujer" = "2"
   )
 
-chile %>% count(`Tamaño empresa`, wt=fact_cal_esi) %>% mutate(n= round(n, digits = 0), Porcentaje =round((n/sum(n)*100), digits = 1))
+
+
+survey<-svydesign(id=~1, weights = ~fact_cal_esi, data = chile)
+weighted_table<-svytable(~sector + sexo, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~sector + sexo, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+
 ```
+
+# Conclusiones
+
+Según lo elaborado, puede observarse que Chile y Bolivia tienen bastantes similitudes y diferencias en lo que respecta a su mercado de trabajo. La similitud más importante es la tasa de actividad, que en ambos casos ronda el 50%. Por el lado de las diferencias, es de destacar que Chile tiene una desocupación más alta que Bolivia, un casi 7% contra un casi 4%. Sin embargo, tanto la tasa de informalidad como la tasa de precariedad son mucho menores. En Chile un 16,3% de los ocupados son informales, mientras que en Bolivia es un 29,2%. Por su parte, en Chile un 20,7% de los asalariados son precarios, mientras que en Bolivia dicha cifra asciende a más de un 50%.
+
+Es de destacar los altos niveles de precariedad e informalidad comentados. En este sentido, sería interesante la comparación con países de otros continentes.
+
+Por último, debemos comentar que nuestras variables de precariedad e informalidad no son exactamente comparables. La primera, en ambos casos, abarca a los trabajadores que no tienen contrato o que tienen un contrato corto. Sin embargo, lo que entendemos como "corto" no es igual para Bolivia que para Chile. Por su parte, la noción de "informalidad" nos resulta un interrogante en el caso chileno, ya que no tenemos conocimiento de cómo se armó dicha variable.
