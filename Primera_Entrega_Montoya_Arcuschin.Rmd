@@ -1,0 +1,363 @@
+---
+title: "Trabajo_Montoya_Arcuschin"
+author: "Melody Sol Arcuschin y Vitor Montoya"
+date: "2024-06-17"
+output: html_document
+---
+
+# Introducción
+
+## **Librerías y lectura de documentos**
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+library(tidyverse)
+library(haven)
+library(openxlsx)
+library(kableExtra)
+library(survey)
+library(gmodels)
+
+
+setwd("C:/Users/melod/Escritorio/Estudio/Posgrado/2024/Mercado de trabajo/Evaluación/Evaluacion/")
+bolivia<- readRDS("Bolivia_1a4T2019.RDS")
+chile <- read.csv2("Chile_2019.csv")
+```
+
+# Desarrollo
+
+En este trabajo abordaremos dos encuetras de hogares, una de desarrollo en Chile y otra en Bolivia. En este último caso, es una encuesta continua de la que abordaremos los datos del cuarto trimestre del 2019, por lo cual el factor de expansión se realizará al nivel trimestral. Por su parte, en el caso de Chile, se trata de una encuesta anual. En ambos casos, la cobertura es a nivel nacional, es decir, incluye áreas tanto rurales como urbanas.
+
+## Bolivia
+
+En lo caso de la encuesta de Bolivia, se utilizaron las siguientes variables:
+
+-   pea → "La Población Económicamente Activa (PEA) corresponde a aquellas personas de 14 años o más de edad que en la semana que fueron encuestadas declararon: a) que trabajaron al menos una hora en la semana de referencia, b) que por razones circunstanciales no trabajaron, pero cuentan con una fuente laboral; c) o que no trabajaron, pero buscaron trabajo durante las últimas cuatro semanas además de estar disponibles para trabajar. La PEA es el conjunto de personas ocupadas y desocupadas."
+
+-   fact_trim → "Cantidad de unidades (personas) que representa una unidad (persona) de la muestra de forma trimestral"
+
+-   peao → "La Población Ocupada corresponde a personas de 14 años de edad o más que hubiesen trabajado más de una hora en la semana de referencia"
+
+-   pead → "La Población Desocupada corresponde a las personas de 14 años o más de edad que: no tienen trabajo, están disponibles para trabajar y lo buscan activamente; es decir, en la semana que fueron encuestadas declararon que no trabajaron ni una hora en la semana de referencia, a pesar de que realizaron acciones de búsqueda de un empleo o intentaron ejercer una actividad por su cuenta, durante las últimas cuatro semanas"
+
+-   s2_26a → sirve para "indagar sobre la cantidad de personal que trabaja en la institución, considerando que se debe aproximar según la existencia de la empresa en distintos lugares dentro del país"
+
+-   s2_17a→ sirve para "determinar si existe una relación de dependencia o no, o si se trata de una trabajador familiar no remunerado"
+
+-   s2_21 →"Esta pregunta permite [conocer] el tipo de relación contractual que tienen los trabajadores con sus empleadores para los casos exclusivos de declaración como Obreros o Empleados en la categoría ocupacional"
+
+-   s2_21a → "Esta pregunta permite [conocer] el tipo de relación contractual en términos de tiempo"
+
+-   s1_07a → "El Nivel Educativo es la declaración del nivel de instrucción más alto que una persona ha alcanzado según el sistema educativo boliviano"
+
+#### **Bolivia-Observación**
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+View(bolivia)
+colnames(bolivia)
+```
+
+#### **Bolivia-Indicadores**
+
+```{r error=FALSE, message=FALSE, warning=FALSE}
+suma_pea <- sum(bolivia$fact_trim[bolivia$pea == 1], na.rm = TRUE)
+suma_desocupados <- sum(bolivia$fact_trim[bolivia$pead == 1], na.rm = TRUE)
+suma_ocupados <- sum(bolivia$fact_trim[bolivia$peao == 1], na.rm = TRUE)
+suma_total <- sum(bolivia$fact_trim)
+informales <- sum(bolivia$fact_trim[(bolivia$s2_26a <= 2)|(bolivia$s1_07a < 71 & bolivia$s2_17a == 1)|(bolivia$s2_17a == 3)], na.rm = TRUE) 
+asalariados <- sum(bolivia$fact_trim[bolivia$s2_17a == 2], na.rm = TRUE) 
+asalariados_precarios <- sum(bolivia$fact_trim[(bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3)], na.rm = TRUE) 
+TA_B = suma_pea/suma_total
+TD_B = suma_desocupados/suma_pea
+TI_B = informales/suma_ocupados
+TP_B = asalariados_precarios/asalariados
+```
+
+En resumen, podemos ver que aproximadamente la mitad de las personas en Bolivia son parte de la población económicamente activa. Es decir, son ocupados o desocupados. Dentro de dicho porcentaje, aproximadamente un 4% son desocupados.
+
+Sin embargo, es de destacar que un 66% de todos los ocupados son informales. Según nuestra definición, esto implicaría trabajar para empresas que a nivel nacional tienen 10 personas o menos, o trabajar para un familiar, o ser cuentapropia con nivel educativo inferior a educación superior.
+
+Asemás, si tomamos en cuenta las relaciones contractuales de los asalariados, se distintgue que la mitad son precarios. Según la definición que tomamos, esto implica no tener contrato firmado o que este dure 6 meses o menos.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+DatosgeneralesBolivia<-tibble(Ocupados=suma_ocupados, Desocupados=suma_desocupados, "Población total"=suma_total, "Población Económicamente Activa" =suma_pea, "Tasa de Actividad"= TA_B, "Tasa de desocupación"=TD_B)
+DatosgeneralesBolivia<-t(DatosgeneralesBolivia)
+kable(DatosgeneralesBolivia, caption = "Datos generales del mercado de trabajo de trabajo boliviano (2019)")
+
+```
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+InformalidadPrecaridadBolivia<-tibble("Tasa de informalidad (%)"=round((TI_B*100), digits = 1), "Tasa de asalariados precarios (%)"=round((TP_B*100), digits = 1))
+InformalidadPrecaridadBolivia<-t(InformalidadPrecaridadBolivia)
+kable(InformalidadPrecaridadBolivia, caption = "Tasa de informalidad y de precariedad en Bolivia")
+
+```
+
+#### Bolivia-sexo/informalidad
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+## Recoding bolivia$sector
+bolivia <- bolivia %>%
+  mutate(sector = ifelse(s2_26a <= 2, "Informal", "Formal"))
+
+## Recoding bolivia$sexo
+bolivia$sexo <- bolivia$s1_02 %>% as.character() %>% fct_recode(
+    "Hombre" = "1",
+    "Mujer" = "2")
+
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~sector + sexo, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~sector + sexo, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+```
+
+#### Bolivia-sexo/precariedad
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+bolivia <- bolivia %>%
+  mutate(precariedad = ifelse(((bolivia$s2_21 %in% c(2,3, 5)) | (bolivia$s2_21a != 3)), "precario", "no precario"))
+
+
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~precariedad + sexo, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~precariedad + sexo, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+
+```
+
+#### **Bolivia-**edad/informalidad
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+bolivia <- bolivia %>%
+  mutate(edad = case_when(
+    s1_03a >= 15 & s1_03a <= 20 ~ "de 15 a 20",
+    s1_03a > 20 & s1_03a <= 40 ~ "de 21 a 40",
+    s1_03a > 40 & s1_03a <= 60 ~ "de 41 a 60",
+    s1_03a > 60 & s1_03a <= 80 ~ "de 61 a 80",
+    s1_03a > 80 ~ "mayor de 80"
+  ))
+
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~edad + sector, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~edad + sector, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+```
+
+#### **Bolivia-**edad/precariedad
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+survey<-svydesign(id=~1, weights = ~fact_trim, data = bolivia)
+weighted_table<-svytable(~edad + precariedad, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~edad + precariedad, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+```
+
+### Chile
+
+#### **Chile-Primeros pasos**
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+#Control de los datos comparando datos del marco poblacional del registro de la encuesta. Los resultados coinciden.
+chile %>% count(grupo_edad, wt=fact_cal_esi) %>% mutate(porcentaje =round((n/sum(n)*100), digits = 1))
+
+```
+
+Como no existe ninguna variable que indique activo/inactivo/desocupado, se procede a recodificar la variable "cse_específico", que indica los distintos tipos de perfiles y que permite reconstruir, en base a lo indicado en el registro, si se trata de la categoría ocupado, desocupado o inactivo.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+chile$categoría <- chile$cse_especifico %>%
+  as.character() %>%
+  fct_recode(
+    "Menor de 15" = "0",
+    "Ocupado" = "1",
+    "Ocupado" = "2",
+    "Ocupado" = "3",
+    "Ocupado" = "4",
+    "Ocupado" = "5",
+    "Ocupado" = "6",
+    "Ocupado" = "7",
+    "Desocupado" = "8",
+    "Desocupado" = "9",
+    "Inactivo" = "10",
+    "Inactivo" = "11",
+    "Inactivo" = "12",
+    "Inactivo" = "13",
+    "Inactivo" = "14",
+    "Inactivo" = "15",
+    "Inactivo" = "16",
+    "Inactivo" = "17",
+    "Inactivo" = "18",
+    "Inactivo" = "19",
+    "Inactivo" = "20",
+    "Inactivo" = "21",
+    "Inactivo" = "22",
+    "Inactivo" = "23",
+    "Inactivo" = "24",
+    "Inactivo" = "25",
+    "Inactivo" = "26",
+    "Inactivo" = "27",
+    "Inactivo" = "28")
+```
+
+#### **Chile-Indicadores**
+
+Se procede luego a calcular los datos solicitados utilizando la categorización anterior.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+
+t<-chile[chile$categoría=="Ocupado",]
+OcupadoChile<-round(sum(t$fact_cal_esi), digits = 0)
+
+
+t<-chile[chile$categoría=="Desocupado",]
+DesocupadoChile<-round(sum(t$fact_cal_esi), digits = 0)
+
+
+PoblTotChile<-sum(chile$fact_cal_esi)
+
+PeaChile<-OcupadoChile+DesocupadoChile
+
+TasaActivChile<-round((PeaChile/PoblTotChile*100), digits = 1)
+
+TasaDesocupChile<-round((DesocupadoChile/PeaChile*100), digits = 1)
+
+Datosgenerales<-tibble(Ocupados=OcupadoChile, Desocupados=DesocupadoChile, "Población total"=PoblTotChile,"Población Económicamente Activa"= PeaChile, "Tasa de Actividad"= TasaActivChile, "Tasa de desocupación"=TasaDesocupChile)
+
+kable(t(Datosgenerales), caption = "Datos generales del mercado de trabajo chileno (2019)")
+
+```
+
+#### Chile-Sector formal e informal, precariedad.
+
+La encuesta ESI contiene una variable "sector" que designa "Ocupados según sector", se calcula entonces la tasa de informalidad usando esa variable.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+InformalChile<-chile %>% filter(chile$sector=="2")
+InformalChile<-sum(InformalChile$fact_cal_esi)
+TasaInformalidadChile<-round(InformalChile/OcupadoChile*100, digits=1)
+
+```
+
+Para la precariedad, se usan tres variables. En primer lugar, la variable "b8" que indica la existencia de un contrato. Se recodifican las modalidades.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+## Recoding chile$b8 into chile$Contrato
+chile$Contrato <- chile$b8 %>%
+  as.character() %>%
+  fct_recode(
+    "Con contrato" = "1",
+    "Sin contrato" = "2"
+  )
+```
+
+Se usa también la variable "b9" sobre el carácter definido o indefinido del contrato.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+## Recoding chile$b9 into chile$DuraciónContrato
+chile$DuraciónContrato <- chile$b9 %>%
+  as.character() %>%
+  fct_recode(
+    "Definido" = "1",
+    "Indefinido" = "2"
+  )
+```
+
+Y la varibale "b10", sobre la duración del contrato.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+## Recoding chile$b10 into chile$DuraciónContratoDefinido
+chile$DuraciónContratoDefinido <- chile$b10 %>%
+  as.character() %>%
+  fct_recode(
+    "Temporada" = "1",
+    "TérminoActividad" = "2",
+    "Menos3meses" = "3",
+    "RenovableAlAño" = "4",
+    "Reemplazo" = "5",
+    "NoSabe" = "6"
+  )
+```
+
+Se crea a partir de esa variable una variable única "Precariedad" que resulta del cruce entre las tres. Luego se recodifica tomando en cuenta los criterios siguientes:
+
+Se considera como precaria: -Toda persona sin contrato. -Toda persona con un contrato de una duración menor a 3 meses, con una duración no conocida, que se acaba con la temporada o al término de la actividad, obra o proyecto.
+
+Se considera como no precaria: - Con contrato definido que se puede remplazar. - Con contrato defenido renovable al año. - Con contrato indefinido.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+# Creación de la variable precariedad
+chile<-chile %>% unite("Precariedad", Contrato,DuraciónContrato,DuraciónContratoDefinido, sep = "_")
+
+## Recoding chile$Precariedad
+chile$Precariedad <- chile$Precariedad %>%
+  fct_recode(
+    "Precario" = "Con contrato_Definido_Menos3meses",
+    "Precario" = "Con contrato_Definido_NoSabe",
+    "NoPrecario" = "Con contrato_Definido_Reemplazo",
+    "Noprecario" = "Con contrato_Definido_RenovableAlAño",
+    "Precario" = "Con contrato_Definido_Temporada",
+    "Precario" = "Con contrato_Definido_TérminoActividad",
+    "NoPrecario" = "Con contrato_Indefinido_NA",
+    NULL = "NA_NA_NA",
+    "Precario" = "Sin contrato_Definido_Menos3meses",
+    "Precario" = "Sin contrato_Definido_NoSabe",
+    "Precario" = "Sin contrato_Definido_Reemplazo",
+    "Precario" = "Sin contrato_Definido_RenovableAlAño",
+    "Precario" = "Sin contrato_Definido_Temporada",
+    "Precario" = "Sin contrato_Definido_TérminoActividad",
+    "Precario" = "Sin contrato_Indefinido_NA"
+  )
+PrecariosChile<-chile %>% filter(Precariedad=="Precario")
+TasaPrecariedadChile<-round(sum(PrecariosChile$fact_cal_esi)/OcupadoChile*100, digits = 1)
+kable(t((tibble("Tasa de informalidad"=TasaInformalidadChile, "Tasa de precariedad"=TasaPrecariedadChile))), caption = "Tasa de informalidad y de precariedad en Chile")
+
+```
+
+#### Sexo/formalidad
+
+Se realizó una tabla cruzada de la relación entre formalidad y sexo.
+
+```{r error=FALSE, message=FALSE, warning=FALSE, scipen=999}
+## Recoding chile$sector
+chile$sector <- chile$sector %>%
+  as.character() %>%
+  fct_recode(
+    "Formal" = "1",
+    "Informal" = "2",
+    "HogaresComoEmpleadores" = "3"
+  )
+
+
+## Recoding chile$sexo
+chile$sexo <- chile$sexo %>%
+  as.character() %>%
+  fct_recode(
+    "Hombre" = "1",
+    "Mujer" = "2"
+  )
+
+
+
+survey<-svydesign(id=~1, weights = ~fact_cal_esi, data = chile)
+weighted_table<-svytable(~sector + sexo, design = survey)
+weighted_data<-as.data.frame(weighted_table)
+weighted_cross_table<-xtabs(Freq~sector + sexo, data = weighted_data)
+
+CrossTable(weighted_cross_table, prop.chisq = FALSE, format = "SPSS", digits = 1)
+
+```
+
+# Conclusiones
+
+Según lo elaborado, puede observarse que Chile y Bolivia tienen bastantes similitudes y diferencias en lo que respecta a su mercado de trabajo. La similitud más importante es la tasa de actividad, que en ambos casos ronda el 50%. Por el lado de las diferencias, es de destacar que Chile tiene una desocupación más alta que Bolivia, un casi 7% contra un casi 4%. Sin embargo, tanto la tasa de informalidad como la tasa de precariedad son mucho menores. En Chile un 16,3% de los ocupados son informales, mientras que en Bolivia es un 29,2%. Por su parte, en Chile un 20,7% de los asalariados son precarios, mientras que en Bolivia dicha cifra asciende a más de un 50%.
+
+Es de destacar los altos niveles de precariedad e informalidad comentados. En este sentido, sería interesante la comparación con países de otros continentes.
+
+Por último, debemos comentar que nuestras variables de precariedad e informalidad no son exactamente comparables. La primera, en ambos casos, abarca a los trabajadores que no tienen contrato o que tienen un contrato corto. Sin embargo, lo que entendemos como "corto" no es igual para Bolivia que para Chile. Por su parte, la noción de "informalidad" nos resulta un interrogante en el caso chileno, ya que no tenemos conocimiento de cómo se armó dicha variable.
